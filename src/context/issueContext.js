@@ -10,44 +10,58 @@ const IssuesContext = createContext()
 
 const IssueProvider = ({ children }) => {
   // const [, dispatch] = useReducer(issueReducers, initialState);
-  const [issues, setIssues] = useState([]);
+  const [issues, setIssues] = useState([]); 
   const [issuesFiltered, setIssuesFiltered] = useState([]);
   const [textSearch, setTextSearch] = useState('');
   const [orderBy, setOrderBy] = useState('asc');
   const [filterBy, setFilterBy] = useState('all');
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(10);
 
   // fetch issues
+  const fetchData = async (_page) => {
+    if(issues.length === totalCount) {
+      setIsLoading(false);
+      return;
+    };
+
+    const res = await httpRequest.get(`https://tony-json-server.herokuapp.com/api/todos?_page=${_page}&_limit=5`);
+    const data = res.data.data;
+    setIssues(prevState => [...prevState, ...data]);
+    setTotalCount(res.data.pagination.totalCount);
+  }
+
   useEffect(() => {
-    const fetchData = async () => {
-      const res = await httpRequest.get('https://tony-json-server.herokuapp.com/api/todos');
-      const data = res.data.data;
-      setIssues(data);
-    }
-    fetchData()
-  }, []);
+    fetchData(page)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   // filter & search
   useEffect(() => {
     if (issues.length === 0) return;
 
-    let newIssues = issues.length > 0 ? issues : [];
+    let newIssues = issues; 
 
     if(filterBy === 'new') {
       newIssues = newIssues
-        .filter(issue => issue.status === filterBy)
+        .filter(issue => issue.status === filterBy) 
     }
     if(filterBy === 'close') {
       newIssues = newIssues
         .filter(issue => issue.status === filterBy)
     }
+
     newIssues = newIssues
       .filter(issue => issue.description.toLowerCase().includes(textSearch.toLowerCase()))
-      .sort((m1, m2) => {
-        if(orderBy === 'asc') return m2.createdAt - m1.createdAt;
-        return m1.createdAt - m2.createdAt
-      })
+      // .sort((m1, m2) => {
+      //   if(orderBy === 'asc' && m2.description > m1.description) {
+      //    return -1
+      //   };
+      //   return 1
+      // })
 
-    setIssuesFiltered(newIssues)
+    setIssuesFiltered(newIssues);
   }, [issues, textSearch, orderBy, filterBy])
 
   // add issues
@@ -83,7 +97,9 @@ const IssueProvider = ({ children }) => {
         deleteIssue,
         setTextSearch,
         setOrderBy,
-        setFilterBy
+        setFilterBy,
+        setPage,
+        isLoading
       }}
     >
       {children}
